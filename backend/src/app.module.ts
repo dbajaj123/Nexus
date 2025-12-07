@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Controller, Get } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
@@ -14,6 +14,27 @@ import { GamificationModule } from './gamification/gamification.module';
 import { AiModule } from './ai/ai.module';
 import { MessagesModule } from './messages/messages.module';
 import { NotificationsModule } from './notifications/notifications.module';
+
+@Controller()
+export class AppController {
+  @Get('health')
+  health() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    };
+  }
+
+  @Get()
+  root() {
+    return {
+      message: 'Nexus API is running',
+      version: '1.0.0',
+      docs: '/api/docs',
+    };
+  }
+}
 
 @Module({
   imports: [
@@ -40,5 +61,6 @@ import { NotificationsModule } from './notifications/notifications.module';
     MessagesModule,
     NotificationsModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
