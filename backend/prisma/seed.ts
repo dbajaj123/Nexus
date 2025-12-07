@@ -6,74 +6,86 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Starting database seeding...');
 
-  // Create Admin User
+  // Create Admin User with Profile
   const adminPassword = await bcrypt.hash('admin123', 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@nexus.com' },
     update: {},
     create: {
       email: 'admin@nexus.com',
-      password: adminPassword,
-      firstName: 'Admin',
-      lastName: 'User',
+      passwordHash: adminPassword,
       role: 'ADMIN',
-      phoneNumber: '+1234567890',
-      dateOfBirth: new Date('1990-01-01'),
-      address: '123 Admin Street',
+      schoolId: 'school-001',
+      profile: {
+        create: {
+          firstName: 'Admin',
+          lastName: 'User',
+          phone: '+1234567890',
+        },
+      },
     },
   });
   console.log('✓ Admin user created:', admin.email);
 
-  // Create Teacher
+  // Create Teacher with Profile
   const teacherPassword = await bcrypt.hash('teacher123', 10);
   const teacher = await prisma.user.upsert({
     where: { email: 'teacher@nexus.com' },
     update: {},
     create: {
       email: 'teacher@nexus.com',
-      password: teacherPassword,
-      firstName: 'John',
-      lastName: 'Teacher',
+      passwordHash: teacherPassword,
       role: 'TEACHER',
-      phoneNumber: '+1234567891',
-      dateOfBirth: new Date('1985-05-15'),
-      address: '456 Teacher Avenue',
+      schoolId: 'school-001',
+      profile: {
+        create: {
+          firstName: 'John',
+          lastName: 'Teacher',
+          phone: '+1234567891',
+        },
+      },
     },
   });
   console.log('✓ Teacher user created:', teacher.email);
 
-  // Create Student
+  // Create Student with Profile
   const studentPassword = await bcrypt.hash('student123', 10);
   const student = await prisma.user.upsert({
     where: { email: 'student@nexus.com' },
     update: {},
     create: {
       email: 'student@nexus.com',
-      password: studentPassword,
-      firstName: 'Jane',
-      lastName: 'Student',
+      passwordHash: studentPassword,
       role: 'STUDENT',
-      phoneNumber: '+1234567892',
-      dateOfBirth: new Date('2005-08-20'),
-      address: '789 Student Road',
+      schoolId: 'school-001',
+      profile: {
+        create: {
+          firstName: 'Jane',
+          lastName: 'Student',
+          phone: '+1234567892',
+        },
+      },
     },
   });
   console.log('✓ Student user created:', student.email);
 
-  // Create Parent
+  // Create Parent with Profile
   const parentPassword = await bcrypt.hash('parent123', 10);
   const parent = await prisma.user.upsert({
     where: { email: 'parent@nexus.com' },
     update: {},
     create: {
       email: 'parent@nexus.com',
-      password: parentPassword,
-      firstName: 'Mary',
-      lastName: 'Parent',
+      passwordHash: parentPassword,
       role: 'PARENT',
-      phoneNumber: '+1234567893',
-      dateOfBirth: new Date('1980-03-10'),
-      address: '789 Student Road',
+      schoolId: 'school-001',
+      profile: {
+        create: {
+          firstName: 'Mary',
+          lastName: 'Parent',
+          phone: '+1234567893',
+        },
+      },
     },
   });
   console.log('✓ Parent user created:', parent.email);
@@ -87,8 +99,7 @@ async function main() {
       name: 'Introduction to Computer Science',
       description: 'Learn the fundamentals of computer science and programming',
       teacherId: teacher.id,
-      schedule: 'Mon, Wed, Fri - 10:00 AM',
-      credits: 3,
+      schoolId: 'school-001',
     },
   });
   console.log('✓ Sample course created:', course.name);
@@ -105,7 +116,6 @@ async function main() {
     create: {
       studentId: student.id,
       courseId: course.id,
-      status: 'ACTIVE',
     },
   });
   console.log('✓ Student enrolled in course');
@@ -116,26 +126,12 @@ async function main() {
       title: 'Homework 1: Variables and Data Types',
       description: 'Complete exercises on variables and data types',
       courseId: course.id,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-      maxScore: 100,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      points: 100,
       type: 'HOMEWORK',
     },
   });
   console.log('✓ Sample assignment created:', assignment.title);
-
-  // Initialize Gamification for student
-  await prisma.gamification.upsert({
-    where: { userId: student.id },
-    update: {},
-    create: {
-      userId: student.id,
-      points: 0,
-      level: 1,
-      badges: [],
-      streak: 0,
-    },
-  });
-  console.log('✓ Gamification initialized for student');
 
   // Initialize Wallet for student
   await prisma.wallet.upsert({
