@@ -92,14 +92,13 @@ async function main() {
 
   // Create Sample Course
   const course = await prisma.course.upsert({
-    where: { id: 'sample-course-1' },
+    where: { code: 'CS101' },
     update: {},
     create: {
-      id: 'sample-course-1',
       name: 'Introduction to Computer Science',
       description: 'Learn the fundamentals of computer science and programming',
+      code: 'CS101',
       teacherId: teacher.id,
-      schoolId: 'school-001',
     },
   });
   console.log('✓ Sample course created:', course.name);
@@ -107,9 +106,9 @@ async function main() {
   // Enroll student in course
   await prisma.enrollment.upsert({
     where: {
-      studentId_courseId: {
-        studentId: student.id,
+      courseId_studentId: {
         courseId: course.id,
+        studentId: student.id,
       },
     },
     update: {},
@@ -127,7 +126,7 @@ async function main() {
       description: 'Complete exercises on variables and data types',
       courseId: course.id,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      points: 100,
+      maxPoints: 100,
       type: 'HOMEWORK',
     },
   });
