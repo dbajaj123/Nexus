@@ -10,26 +10,36 @@ export class AttendanceService {
     const date = new Date(dto.date);
 
     const records = await Promise.all(
-      dto.records.map((record) =>
-        this.prisma.attendanceRecord.upsert({
+      dto.records.map(async (record) => {
+        // Check if record exists for this student and date
+        const existing = await this.prisma.attendanceRecord.findFirst({
           where: {
-            studentId_date: {
-              studentId: record.studentId,
-              date,
-            },
-          },
-          update: {
-            status: record.status,
-            notes: record.notes,
-          },
-          create: {
             studentId: record.studentId,
             date,
-            status: record.status,
-            notes: record.notes,
           },
-        }),
-      ),
+        });
+
+        if (existing) {
+          // Update existing record
+          return this.prisma.attendanceRecord.update({
+            where: { id: existing.id },
+            data: {
+              status: record.status,
+              notes: record.notes,
+            },
+          });
+        } else {
+          // Create new record
+          return this.prisma.attendanceRecord.create({
+            data: {
+              studentId: record.studentId,
+              date,
+              status: record.status,
+              notes: record.notes,
+            },
+          });
+        }
+      }),
     );
 
     return records;
