@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+enum UserRole {
+  STUDENT
+  TEACHER
+  PARENT
+  ADMIN
+}
+
+enum AssignmentType {
+  HOMEWORK
+  EXAM
+  PROJECT
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  GRADED
+  LATE
+  MISSING
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum TxType {
+  DEPOSIT
+  PAYMENT
+  REFUND
+}
+
+enum TxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  ANNOUNCEMENT
+}
+
+// --- USER MANAGEMENT ---
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  refreshToken String?
+  role         UserRole
+  schoolId     String
+  profile      Profile?
+  
+  // Relations
+  enrollments      Enrollment[]
+  teachingCourses  Course[]
+  sentMessages     Message[]        @relation("SentMessages")
+  receivedMessages Message[]        @relation("ReceivedMessages")
+  notifications    Notification[]
+  wallet           Wallet?
+  attendance       AttendanceRecord[]
+  submissions      Submission[]
+  children         ParentChild[]    @relation("Parent")
+  parents          ParentChild[]    @relation("Child")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([email])
+}
+
+model Profile {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  avatarUrl String?
+  bio       String?
+  phone     String?
+  
+  // Gamification
+  xp     Int @default(0)
+  level  Int @default(1)
+  badges BadgeOwnership[]
+  
+  wellnessLogs WellnessLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ParentChild {
+  parentId String
+  childId  String
+  parent   User   @relation("Parent", fields: [parentId], references: [id], onDelete: Cascade)
+  child    User   @relation("Child", fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@id([parentId, childId])
+}
+
+// --- ACADEMIC CORE ---
+model Course {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  code        String   @unique
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  
+  enrollments Enrollment[]
+  assignments Assignment[]
+  resources   Resource[]
+  schedule    ScheduleBlock[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherId])
+}
+
+model Enrollment {
+  id        String @id @default(uuid())
+  courseId  String
+  studentId String
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  enrolledAt DateTime @default(now())
+  
+  @@unique([courseId, studentId])
+  @@index([studentId])
+}
+
+model Assignment {
+  id          String         @id @default(uuid())
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime
+  maxPoints   Int
+  type        AssignmentType
+  
+  submissions Submission[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([dueDate])
+}
+
+model Submission {
+  id           String           @id @default(uuid())
+  assignmentId String
+  studentId    String
+  student      User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  
+  contentUrl   String?
+  submittedAt  DateTime         @default(now())
+  
+  // Grading
+  status       SubmissionStatus @default(PENDING)
+  aiGrade      Float?
+  finalGrade   Float?
+  feedback     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+}
+
+model Resource {
+  id          String   @id @default(uuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  fileUrl     String
+  fileType    String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+// --- LOGISTICS & OPERATIONS ---
+model ScheduleBlock {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  dayOfWeek Int      // 0 = Sunday, 1 = Monday, etc.
+  startTime String   // "09:00"
+  endTime   String   // "10:30"
+  room      String?
+  
+  @@index([courseId])
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  studentId String
+  student   User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      DateTime
+  status    AttendanceStatus
+  notes     String?
+  
+  createdAt DateTime @default(now())
+
+  @@index([studentId, date])
+}
+
+// --- WELLNESS & GAMIFICATION ---
+model WellnessLog {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  moodScore Int      // 1-10
+  tags      String[]
+  notes     String?
+  flagged   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  @@index([profileId, createdAt])
+}
+
+model Badge {
+  id          String           @id @default(uuid())
+  name        String
+  description String
+  icon        String
+  xpValue     Int
+  owners      BadgeOwnership[]
+  
+  createdAt DateTime @default(now())
+}
+
+model BadgeOwnership {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt  DateTime @default(now())
+  
+  @@unique([profileId, badgeId])
+  @@index([profileId])
+}
+
+// --- FINANCE ---
+model Wallet {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Float         @default(0.0)
+  transactions Transaction[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount    Float
+  type      TxType
+  category  String
+  status    TxStatus @default(PENDING)
+  timestamp DateTime @default(now())
+  
+  description String?
+
+  @@index([walletId])
+  @@index([timestamp])
+}
+
+// --- COMMUNICATION ---
+model Message {
+  id         String      @id @default(uuid())
+  senderId   String
+  receiverId String
+  sender     User        @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User        @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content    String
+  type       MessageType @default(TEXT)
+  read       Boolean     @default(false)
+  
+  createdAt DateTime @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id      String  @id @default(uuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title   String
+  message String
+  read    Boolean @default(false)
+  link    String?
+  
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
